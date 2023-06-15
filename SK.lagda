@@ -94,4 +94,30 @@ record DepModel {l} {l'} : Set (lsuc (l ⊔ l')) where
     indS : ∀{A B C} → ind (I.S {A} {B} {C}) ≡ S• {A} {B} {C} {indT A} {indT B} {indT C}
   {-# REWRITE ind$ indK indS #-}
 
+-- Then we have to describe the normal forms (model without equations)
+-- Basically we can see them as all terms of SK where applications are all partials:
+
+module _ where
+  open I
+  
+  data NF : I.Ty → Set where
+    K₀ : ∀{A B} → NF (A ⇒ B ⇒ A)
+    K₁ : ∀{A B} → NF A → NF (B ⇒ A)
+    S₀ : ∀{A B C} → NF ((A ⇒ B ⇒ C) ⇒ (A ⇒ B) ⇒ A ⇒ C)
+    S₁ : ∀{A B C} → NF (A ⇒ B ⇒ C) → NF ((A ⇒ B) ⇒ A ⇒ C)
+    S₂ : ∀{A B C} → NF (A ⇒ B ⇒ C) → NF (A ⇒ B) → NF (A ⇒ C)
+
+  -- Then we can give the translations from a form to another :
+
+  -- Inclusion
+
+  ⌜_⌝ : ∀{A} → NF A → Tm A
+  ⌜ K₀ ⌝ = K
+  ⌜ K₁ u ⌝ = K $ ⌜ u ⌝
+  ⌜ S₀ ⌝ = S
+  ⌜ S₁ u ⌝ = S $ ⌜ u ⌝
+  ⌜ S₂ u v ⌝ = S $ ⌜ u ⌝ $ ⌜ v ⌝
+
+-- Normalisation
+
 \end{code}
