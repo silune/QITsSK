@@ -83,4 +83,15 @@ record DepModel {l} {l'} : Set (lsuc (l ⊔ l')) where
             {u : I.Tm A}{u• : Tm• A• u} →
             transp⟨ Tm• C• ⟩ I.Sβ (S• $• f• $• g• $• u•) ≡ f• $• u• $• (g• $• u•)
 
+  indT : (A : I.Ty) → Ty• A
+  indT I.ι       = ι•
+  indT (A I.⇒ B) = (indT A) ⇒• (indT B)
+    
+  postulate
+    ind  : ∀{A}{A• : Ty• A} → (u : I.Tm A) → Tm• A• u
+    ind$ : ∀{A B}{u : I.Tm (A I.⇒ B)}{v : I.Tm A} → ind {B} {indT B} (u I.$ v) ≡ _$•_ {A} {B} {indT A} {indT B} (ind u) (ind v)
+    indK : ∀{A B} → ind (I.K {A} {B}) ≡ K• {A} {B} {indT A} {indT B}
+    indS : ∀{A B C} → ind (I.S {A} {B} {C}) ≡ S• {A} {B} {C} {indT A} {indT B} {indT C}
+  {-# REWRITE ind$ indK indS #-}
+
 \end{code}
