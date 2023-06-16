@@ -89,9 +89,12 @@ record DepModel {l} {l'} : Set (lsuc (l ⊔ l')) where
     
   postulate
     ind  : ∀{A}{A• : Ty• A} → (u : I.Tm A) → Tm• A• u
-    ind$ : ∀{A B}{u : I.Tm (A I.⇒ B)}{v : I.Tm A} → ind {B} {indT B} (u I.$ v) ≡ _$•_ {A} {B} {indT A} {indT B} (ind u) (ind v)
-    indK : ∀{A B} → ind (I.K {A} {B}) ≡ K• {A} {B} {indT A} {indT B}
-    indS : ∀{A B C} → ind (I.S {A} {B} {C}) ≡ S• {A} {B} {C} {indT A} {indT B} {indT C}
+    ind$ : ∀{A B}{u : I.Tm (A I.⇒ B)}{v : I.Tm A} →
+           ind {B} {indT B} (u I.$ v) ≡ _$•_ {A} {B} {indT A} {indT B} (ind u) (ind v)
+    indK : ∀{A B} →
+           ind (I.K {A} {B}) ≡ K• {A} {B} {indT A} {indT B}
+    indS : ∀{A B C} →
+           ind (I.S {A} {B} {C}) ≡ S• {A} {B} {C} {indT A} {indT B} {indT C}
   {-# REWRITE ind$ indK indS #-}
 
 -- Then we have to describe the normal forms (model without equations)
@@ -119,5 +122,32 @@ module _ where
   ⌜ S₂ u v ⌝ = S $ ⌜ u ⌝ $ ⌜ v ⌝
 
 -- Normalisation
+
+NormProof : DepModel
+NormProof = record
+  { Ty•  = λ A → Σ (I.Tm A → Set) (λ RED → (u : I.Tm A) → RED u → NF A)
+  ; ι•   = (λ _ → Lift ⊥), λ _ p → ⊥-elim (unfold p) -- there is no term of type ι
+  ; _⇒•_ = λ {A}{B} (REDA , A•) (REDB , B•) →
+             (λ u → ((v : I.Tm A) → REDA v → REDB (u I.$ v)) × NF (A I.⇒ B)) ,
+             (λ u u• → pr₂ u•)
+  ; Tm•  = pr₁
+  ; _$•_ = λ {_}{_}{_}{_}{_}{v} u• v• →
+           (pr₁ u• v v•)
+  ; K•   = λ {_}{_}{A•} →
+           (λ u u• → (λ v v• → transp⟨ pr₁ A• ⟩ (symetry I.Kβ) u•) ,
+                     (K₁ (pr₂ A• u u•))) ,
+           K₀
+  ; S•   = λ {A}{B}{C}{A•}{B•}{C•} →
+           (λ f f• → (λ g g• → (λ x x• → transp⟨ pr₁ C• ⟩ (symetry I.Sβ) (pr₁ (pr₁ f• x x•) (g I.$ x) (pr₁ g• x x• ))) ,
+                               (S₂ (pr₂ f•) (pr₂ g•))) ,
+                     (S₁ (pr₂ f•))) ,
+           S₀
+  ; Kβ•  = λ {_}{_}{A•} → transptransp (pr₁ A•) (symetry I.Kβ)
+  ; Sβ•  = λ {_}{_}{_}{_}{_}{C•} → transptransp (pr₁ C•) (symetry I.Sβ){I.Sβ}
+  }
+module NormProof = DepModel NormProof
+
+norm : ∀{A} → I.Tm A → NF A
+norm {A} u = pr₂ (NormProof.indT A) u (NormProof.ind {A}{NormProof.indT A} u)
 
 \end{code}

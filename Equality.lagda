@@ -49,6 +49,9 @@ module Equality where
   postulate transprefl : ∀{l}{A : Set l}{l'}{P : A → Set l'}{a : A}{e : a ≡ a}{p : P a} → transp⟨ P ⟩ e p ≡ p
   {-# REWRITE transprefl #-}
 
+  transptransp : ∀{ℓ}{A : Set ℓ}{ℓ'}(P : A → Set ℓ'){a a' a'' : A}(e : a ≡ a'){e' : a' ≡ a''}{p : P a} → transp⟨ P ⟩ e' (transp⟨ P ⟩ e p) ≡ transp⟨ P ⟩ (a ≡⟨ e ⟩ e') p
+  transptransp P refl {refl} = refl
+
   -- (lemma 2.3.5 HoTT)
   transpconst⟨_⟩ : ∀{l}{A : Set l}{l'}{P : Set l'}{x y : A}{eq : x ≡ y} → (p : P) → transp⟨ (λ _ → P) ⟩ eq p ≡ p
   transpconst⟨_⟩ {eq = refl} p = refl
