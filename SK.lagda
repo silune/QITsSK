@@ -8,6 +8,8 @@ open import Logic
 
 module SK where
 
+--------------------------------------------------
+
 -- First the initial model consists of
   -- Types
   -- Terms
@@ -97,6 +99,8 @@ record DepModel {l} {l'} : Set (lsuc (l ⊔ l')) where
            ind (I.S {A} {B} {C}) ≡ S• {A} {B} {C} {indT A} {indT B} {indT C}
     {-# REWRITE ind$ indK indS #-}
 
+--------------------------------------------------
+
 -- Then we have to describe the normal forms (model without equations)
 -- Basically we can see them as all terms of SK where applications are all partials:
 
@@ -112,7 +116,7 @@ module _ where
 
   -- Then we can give the translations from a form to another :
 
-  -- Inclusion
+-- Inclusion
 
   ⌜_⌝ : ∀{A} → NF A → Tm A
   ⌜ K₀ ⌝ = K
@@ -134,7 +138,7 @@ record isNormal {A} (u : I.Tm A) : Set where
 NormProof : DepModel
 NormProof = record
   { Ty•  = λ A → Σ (I.Tm A → Set) (λ RED → (u : I.Tm A) → RED u → isNormal u)
-  ; ι•   = (λ _ → Lift ⊥), λ _ p → ⊥-elim (unfold p) -- there is no term of type ι
+  ; ι•   = (λ _ → Lift ⊥) , λ _ p → ⊥-elim (unfold p) -- there is no term of type ι
   ; _⇒•_ = λ {A}{B} (REDA , _) (REDB , _) →
              (λ u → ((v : I.Tm A) → REDA v → REDB (u I.$ v)) × (isNormal u)) ,
              (λ u u• → pr₂ u•)
@@ -147,13 +151,17 @@ NormProof = record
                           (cong⟨ (λ x → I.K I.$ x) ⟩ (isNormal.nfeq (pr₂ A• u u•)))) ,
            NFis K₀ refl
   ; S•   = λ {A}{B}{C}{A•}{B•}{C•} →
-           (λ f f• → (λ g g• → (λ x x• → transp⟨ pr₁ C• ⟩ (symetry I.Sβ) (pr₁ (pr₁ f• x x•) (g I.$ x) (pr₁ g• x x• ))) ,
-                               NFis (S₂ (isNormal.nf (pr₂ f•)) (isNormal.nf (pr₂ g•)))
-                                    (I.S I.$ ⌜ isNormal.nf (pr₂ f•) ⌝ I.$ ⌜ isNormal.nf (pr₂ g•) ⌝
-                                      ≡⟨ cong⟨ (λ x → I.S I.$ ⌜ isNormal.nf (pr₂ f•) ⌝ I.$ x) ⟩ (isNormal.nfeq (pr₂ g•)) ⟩
-                                     cong⟨ (λ x → I.S I.$ x I.$ g) ⟩ (isNormal.nfeq (pr₂ f•)))) ,
-                     NFis (S₁ (isNormal.nf (pr₂ f•)))
-                          (cong⟨ (λ x → I.S I.$ x) ⟩ (isNormal.nfeq (pr₂ f•)))) ,
+           (λ f f• → let nf_f = isNormal.nf (pr₂ f•) in
+                     let nfeq_f = isNormal.nfeq (pr₂ f•) in
+             (λ g g• → let nf_g = isNormal.nf (pr₂ g•) in
+                       let nfeq_g = isNormal.nfeq (pr₂ g•) in
+               (λ x x• → transp⟨ pr₁ C• ⟩ (symetry I.Sβ) (pr₁ (pr₁ f• x x•) (g I.$ x) (pr₁ g• x x• ))) ,
+               NFis (S₂ nf_f nf_g)
+                    (I.S I.$ ⌜ nf_f ⌝ I.$ ⌜ nf_g ⌝ ≡⟨ cong⟨ (λ x → I.S I.$ ⌜ nf_f ⌝ I.$ x) ⟩ nfeq_g ⟩
+                     I.S I.$ ⌜ nf_f ⌝ I.$    g     ≡⟨ cong⟨ (λ x → I.S I.$ x I.$ g) ⟩ nfeq_f ⟩
+                     refl )) ,
+             NFis (S₁ nf_f)
+                  (cong⟨ (λ x → I.S I.$ x) ⟩ nfeq_f)) ,
            NFis S₀ refl
   ; Kβ•  = λ {_}{_}{A•} → transptransp (pr₁ A•) (symetry I.Kβ)
   ; Sβ•  = λ {_}{_}{_}{_}{_}{C•} → transptransp (pr₁ C•) (symetry I.Sβ){I.Sβ}
@@ -206,6 +214,8 @@ normS₂Morph {A}{B}{C}{f}{g} =
 
 -- inclusion is homomorphism by definition
 
+--------------------------------------------------
+ 
 -- Stability
 
 -- normalisation stability
