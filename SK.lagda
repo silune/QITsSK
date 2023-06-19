@@ -58,7 +58,7 @@ record Model {l l'} : Set (lsuc (l ⊔ l')) where
     ⟦$⟧ : ∀{A B} → {f : I.Tm (A I.⇒ B)} → {x : I.Tm A} → ⟦ f I.$ x ⟧ ≡ ⟦ f ⟧ $ ⟦ x ⟧
     ⟦K⟧ : ∀{A B} → ⟦ I.K {A} {B} ⟧ ≡ K {⟦ A ⟧T} {⟦ B ⟧T}
     ⟦S⟧ : ∀{A B C} → ⟦ I.S {A} {B} {C} ⟧ ≡ S {⟦ A ⟧T} {⟦ B ⟧T} {⟦ C ⟧T}
-  {-# REWRITE ⟦$⟧ ⟦K⟧ ⟦S⟧ #-}
+    {-# REWRITE ⟦$⟧ ⟦K⟧ ⟦S⟧ #-}
 
 record DepModel {l} {l'} : Set (lsuc (l ⊔ l')) where
   infixr 5 _⇒•_
@@ -95,7 +95,7 @@ record DepModel {l} {l'} : Set (lsuc (l ⊔ l')) where
            ind (I.K {A} {B}) ≡ K• {A} {B} {indT A} {indT B}
     indS : ∀{A B C} →
            ind (I.S {A} {B} {C}) ≡ S• {A} {B} {C} {indT A} {indT B} {indT C}
-  {-# REWRITE ind$ indK indS #-}
+    {-# REWRITE ind$ indK indS #-}
 
 -- Then we have to describe the normal forms (model without equations)
 -- Basically we can see them as all terms of SK where applications are all partials:
@@ -127,7 +127,7 @@ NormProof : DepModel
 NormProof = record
   { Ty•  = λ A → Σ (I.Tm A → Set) (λ RED → (u : I.Tm A) → RED u → NF A)
   ; ι•   = (λ _ → Lift ⊥), λ _ p → ⊥-elim (unfold p) -- there is no term of type ι
-  ; _⇒•_ = λ {A}{B} (REDA , A•) (REDB , B•) →
+  ; _⇒•_ = λ {A}{B} (REDA , _) (REDB , _) →
              (λ u → ((v : I.Tm A) → REDA v → REDB (u I.$ v)) × NF (A I.⇒ B)) ,
              (λ u u• → pr₂ u•)
   ; Tm•  = pr₁
@@ -149,5 +149,62 @@ module NormProof = DepModel NormProof
 
 norm : ∀{A} → I.Tm A → NF A
 norm {A} u = pr₂ (NormProof.indT A) u (NormProof.ind {A}{NormProof.indT A} u)
+
+-- Homomorphism
+
+-- refl should work because of rewriting rules but I have to specify a ton of implicit parameters
+
+normK₀Morph : ∀{A}{B} → norm (I.K {A}{B}) ≡ (K₀ {A}{B})
+normK₀Morph = refl
+
+test : ∀{A}{B} → NormProof.K• {A}{B}{NormProof.indT A}{NormProof.indT B} ≡
+                 NormProof.ind {A I.⇒ B I.⇒ A}{NormProof.indT (A I.⇒ B I.⇒ A)} (I.K {A}{B})
+test = refl
+  
+normK₁Morph : ∀{A}{B}{u : I.Tm A} → norm (I.K I.$ u) ≡ (K₁ {A}{B} (norm u))
+normK₁Morph {A}{B}{u} =
+   let A• = NormProof.indT A in
+   let B• = NormProof.indT B in
+   pr₂ (NormProof.ind {B I.⇒ A}{B• NormProof.⇒• A•} (I.K I.$ u)) ≡⟨ cong⟨ pr₂ ⟩ (NormProof.ind$ {A}{B I.⇒ A}{I.K}{u}) ⟩
+   refl
+
+normSMorph : ∀{A}{B}{C} → norm (I.S {A}{B}{C}) ≡ (S₀ {A}{B}{C})
+normSMorph = refl
+
+normS₁Morph : ∀{A}{B}{C}{f : I.Tm (A I.⇒ B I.⇒ C)} → norm (I.S I.$ f) ≡ S₁ (norm f)
+normS₁Morph {A}{B}{C}{f} =
+  let A• = NormProof.indT A in
+  let B• = NormProof.indT B in
+  let C• = NormProof.indT C in
+  pr₂ (NormProof.ind {(A I.⇒ B) I.⇒ A I.⇒ C}{(A• NormProof.⇒• B•) NormProof.⇒• A• NormProof.⇒• C•} (I.S I.$ f))
+    ≡⟨ cong⟨ pr₂ ⟩ (NormProof.ind$ {A I.⇒ B I.⇒ C}{(A I.⇒ B) I.⇒ A I.⇒ C}{I.S}{f}) ⟩
+  refl
+
+normS₂Morph : ∀{A}{B}{C}{f : I.Tm (A I.⇒ B I.⇒ C)}{g : I.Tm (A I.⇒ B)} → norm (I.S I.$ f I.$ g) ≡ S₂ (norm f) (norm g)
+normS₂Morph {A}{B}{C}{f}{g} =
+  let A• = NormProof.indT A in
+  let B• = NormProof.indT B in
+  let C• = NormProof.indT C in
+  pr₂ (NormProof.ind {A I.⇒ C}{A• NormProof.⇒• C•} (I.S I.$ f I.$ g))
+    ≡⟨ cong⟨ pr₂ ⟩ (NormProof.ind$ {A I.⇒ B}{A I.⇒ C}{I.S I.$ f}{g}) ⟩
+  pr₂ (pr₁ (NormProof.ind {(A I.⇒ B) I.⇒ A I.⇒ C}{(A• NormProof.⇒• B•) NormProof.⇒• A• NormProof.⇒• C•}(I.S I.$ f)) g (NormProof.ind {A I.⇒ B}{A• NormProof.⇒• B•} g))
+    ≡⟨ cong⟨ (λ x → pr₂ (pr₁ x g (NormProof.ind {A I.⇒ B}{A• NormProof.⇒• B•} g))) ⟩ (NormProof.ind$ {A I.⇒ B I.⇒ C}{(A I.⇒ B) I.⇒ A I.⇒ C}{I.S}{f}) ⟩
+  refl
+
+-- Stability
+
+normStability : ∀{A} → (nf : NF A) → norm ⌜ nf ⌝ ≡ nf
+normStability K₀       = refl
+normStability (K₁ u)   = norm ⌜ K₁ u ⌝     ≡⟨ normK₁Morph ⟩
+                         K₁ (norm ⌜ u ⌝)   ≡⟨ cong⟨ K₁ ⟩ (normStability u) ⟩
+                         refl
+normStability S₀       = refl
+normStability (S₁ f)   = norm ⌜ S₁ f ⌝     ≡⟨ normS₁Morph ⟩
+                         S₁ (norm ⌜ f ⌝)   ≡⟨ cong⟨ S₁ ⟩ (normStability f) ⟩
+                         refl
+normStability (S₂ f g) = norm ⌜ S₂ f g ⌝               ≡⟨ normS₂Morph ⟩
+                         S₂ (norm ⌜ f ⌝) (norm ⌜ g ⌝)  ≡⟨ cong⟨ (λ x → S₂ x (norm ⌜ g ⌝)) ⟩ (normStability f) ⟩
+                         S₂ f (norm ⌜ g ⌝)             ≡⟨ cong⟨ (S₂ f) ⟩ (normStability g) ⟩
+                         refl
 
 \end{code}
