@@ -123,36 +123,49 @@ module _ where
 
 -- Normalisation
 
+-- this record is used to transport the equality with the normal form along each step of reduction during the normalization
+-- maybe a more elegant solution exists ?
+record isNormal {A} (u : I.Tm A) : Set where
+  constructor NFis
+  field
+    nf : NF A
+    nfeq : ⌜ nf ⌝ ≡ u
+
 NormProof : DepModel
 NormProof = record
-  { Ty•  = λ A → Σ (I.Tm A → Set) (λ RED → (u : I.Tm A) → RED u → NF A)
+  { Ty•  = λ A → Σ (I.Tm A → Set) (λ RED → (u : I.Tm A) → RED u → isNormal u)
   ; ι•   = (λ _ → Lift ⊥), λ _ p → ⊥-elim (unfold p) -- there is no term of type ι
   ; _⇒•_ = λ {A}{B} (REDA , _) (REDB , _) →
-             (λ u → ((v : I.Tm A) → REDA v → REDB (u I.$ v)) × NF (A I.⇒ B)) ,
+             (λ u → ((v : I.Tm A) → REDA v → REDB (u I.$ v)) × (isNormal u)) ,
              (λ u u• → pr₂ u•)
   ; Tm•  = pr₁
   ; _$•_ = λ {_}{_}{_}{_}{_}{v} u• v• →
            (pr₁ u• v v•)
   ; K•   = λ {_}{_}{A•} →
            (λ u u• → (λ v v• → transp⟨ pr₁ A• ⟩ (symetry I.Kβ) u•) ,
-                     (K₁ (pr₂ A• u u•))) ,
-           K₀
+                     NFis (K₁ (isNormal.nf (pr₂ A• u u•)))
+                          (cong⟨ (λ x → I.K I.$ x) ⟩ (isNormal.nfeq (pr₂ A• u u•)))) ,
+           NFis K₀ refl
   ; S•   = λ {A}{B}{C}{A•}{B•}{C•} →
            (λ f f• → (λ g g• → (λ x x• → transp⟨ pr₁ C• ⟩ (symetry I.Sβ) (pr₁ (pr₁ f• x x•) (g I.$ x) (pr₁ g• x x• ))) ,
-                               (S₂ (pr₂ f•) (pr₂ g•))) ,
-                     (S₁ (pr₂ f•))) ,
-           S₀
+                               NFis (S₂ (isNormal.nf (pr₂ f•)) (isNormal.nf (pr₂ g•)))
+                                    (I.S I.$ ⌜ isNormal.nf (pr₂ f•) ⌝ I.$ ⌜ isNormal.nf (pr₂ g•) ⌝
+                                      ≡⟨ cong⟨ (λ x → I.S I.$ ⌜ isNormal.nf (pr₂ f•) ⌝ I.$ x) ⟩ (isNormal.nfeq (pr₂ g•)) ⟩
+                                     cong⟨ (λ x → I.S I.$ x I.$ g) ⟩ (isNormal.nfeq (pr₂ f•)))) ,
+                     NFis (S₁ (isNormal.nf (pr₂ f•)))
+                          (cong⟨ (λ x → I.S I.$ x) ⟩ (isNormal.nfeq (pr₂ f•)))) ,
+           NFis S₀ refl
   ; Kβ•  = λ {_}{_}{A•} → transptransp (pr₁ A•) (symetry I.Kβ)
   ; Sβ•  = λ {_}{_}{_}{_}{_}{C•} → transptransp (pr₁ C•) (symetry I.Sβ){I.Sβ}
   }
 module NormProof = DepModel NormProof
 
 norm : ∀{A} → I.Tm A → NF A
-norm {A} u = pr₂ (NormProof.indT A) u (NormProof.ind {A}{NormProof.indT A} u)
+norm {A} u = isNormal.nf (pr₂ (NormProof.indT A) u (NormProof.ind {A}{NormProof.indT A} u))
 
 -- Homomorphism
 
--- refl should work because of rewriting rules but I have to specify a ton of implicit parameters
+-- refl should work ? because of rewriting rules but I have to specify a ton of implicit parameters
 
 normK₀Morph : ∀{A}{B} → norm (I.K {A}{B}) ≡ (K₀ {A}{B})
 normK₀Morph = refl
@@ -165,7 +178,7 @@ normK₁Morph : ∀{A}{B}{u : I.Tm A} → norm (I.K I.$ u) ≡ (K₁ {A}{B} (nor
 normK₁Morph {A}{B}{u} =
    let A• = NormProof.indT A in
    let B• = NormProof.indT B in
-   pr₂ (NormProof.ind {B I.⇒ A}{B• NormProof.⇒• A•} (I.K I.$ u)) ≡⟨ cong⟨ pr₂ ⟩ (NormProof.ind$ {A}{B I.⇒ A}{I.K}{u}) ⟩
+   isNormal.nf (pr₂ (NormProof.ind {B I.⇒ A}{B• NormProof.⇒• A•} (I.K I.$ u))) ≡⟨ cong⟨ (λ x → isNormal.nf (pr₂ x)) ⟩ (NormProof.ind$ {A}{B I.⇒ A}{I.K}{u}) ⟩
    refl
 
 normSMorph : ∀{A}{B}{C} → norm (I.S {A}{B}{C}) ≡ (S₀ {A}{B}{C})
@@ -176,8 +189,8 @@ normS₁Morph {A}{B}{C}{f} =
   let A• = NormProof.indT A in
   let B• = NormProof.indT B in
   let C• = NormProof.indT C in
-  pr₂ (NormProof.ind {(A I.⇒ B) I.⇒ A I.⇒ C}{(A• NormProof.⇒• B•) NormProof.⇒• A• NormProof.⇒• C•} (I.S I.$ f))
-    ≡⟨ cong⟨ pr₂ ⟩ (NormProof.ind$ {A I.⇒ B I.⇒ C}{(A I.⇒ B) I.⇒ A I.⇒ C}{I.S}{f}) ⟩
+  isNormal.nf (pr₂ (NormProof.ind {(A I.⇒ B) I.⇒ A I.⇒ C}{(A• NormProof.⇒• B•) NormProof.⇒• A• NormProof.⇒• C•} (I.S I.$ f)))
+    ≡⟨ cong⟨ (λ x → isNormal.nf (pr₂ x)) ⟩ (NormProof.ind$ {A I.⇒ B I.⇒ C}{(A I.⇒ B) I.⇒ A I.⇒ C}{I.S}{f}) ⟩
   refl
 
 normS₂Morph : ∀{A}{B}{C}{f : I.Tm (A I.⇒ B I.⇒ C)}{g : I.Tm (A I.⇒ B)} → norm (I.S I.$ f I.$ g) ≡ S₂ (norm f) (norm g)
@@ -185,13 +198,17 @@ normS₂Morph {A}{B}{C}{f}{g} =
   let A• = NormProof.indT A in
   let B• = NormProof.indT B in
   let C• = NormProof.indT C in
-  pr₂ (NormProof.ind {A I.⇒ C}{A• NormProof.⇒• C•} (I.S I.$ f I.$ g))
-    ≡⟨ cong⟨ pr₂ ⟩ (NormProof.ind$ {A I.⇒ B}{A I.⇒ C}{I.S I.$ f}{g}) ⟩
-  pr₂ (pr₁ (NormProof.ind {(A I.⇒ B) I.⇒ A I.⇒ C}{(A• NormProof.⇒• B•) NormProof.⇒• A• NormProof.⇒• C•}(I.S I.$ f)) g (NormProof.ind {A I.⇒ B}{A• NormProof.⇒• B•} g))
-    ≡⟨ cong⟨ (λ x → pr₂ (pr₁ x g (NormProof.ind {A I.⇒ B}{A• NormProof.⇒• B•} g))) ⟩ (NormProof.ind$ {A I.⇒ B I.⇒ C}{(A I.⇒ B) I.⇒ A I.⇒ C}{I.S}{f}) ⟩
+  isNormal.nf (pr₂ (NormProof.ind {A I.⇒ C}{A• NormProof.⇒• C•} (I.S I.$ f I.$ g)))
+    ≡⟨ cong⟨ (λ x → isNormal.nf (pr₂ x)) ⟩ (NormProof.ind$ {A I.⇒ B}{A I.⇒ C}{I.S I.$ f}{g}) ⟩
+  isNormal.nf (pr₂ (pr₁ (NormProof.ind {(A I.⇒ B) I.⇒ A I.⇒ C}{(A• NormProof.⇒• B•) NormProof.⇒• A• NormProof.⇒• C•}(I.S I.$ f)) g (NormProof.ind {A I.⇒ B}{A• NormProof.⇒• B•} g)))
+    ≡⟨ cong⟨ (λ x → isNormal.nf (pr₂ (pr₁ x g (NormProof.ind {A I.⇒ B}{A• NormProof.⇒• B•} g)))) ⟩ (NormProof.ind$ {A I.⇒ B I.⇒ C}{(A I.⇒ B) I.⇒ A I.⇒ C}{I.S}{f}) ⟩
   refl
 
+-- inclusion is homomorphism by definition
+
 -- Stability
+
+-- normalisation stability
 
 normStability : ∀{A} → (nf : NF A) → norm ⌜ nf ⌝ ≡ nf
 normStability K₀       = refl
@@ -206,5 +223,14 @@ normStability (S₂ f g) = norm ⌜ S₂ f g ⌝               ≡⟨ normS₂Mo
                          S₂ (norm ⌜ f ⌝) (norm ⌜ g ⌝)  ≡⟨ cong⟨ (λ x → S₂ x (norm ⌜ g ⌝)) ⟩ (normStability f) ⟩
                          S₂ f (norm ⌜ g ⌝)             ≡⟨ cong⟨ (S₂ f) ⟩ (normStability g) ⟩
                          refl
+
+-- inclusion stability
+-- this has been done during the normalisation, we just extract the proof
+
+inclusionStability : ∀{A} → (u : I.Tm A) → ⌜ norm u ⌝ ≡ u
+inclusionStability {A} u =
+  let A• = NormProof.indT A in
+  isNormal.nfeq (pr₂ A• u (NormProof.ind {A}{A•} u))
+  
 
 \end{code}
