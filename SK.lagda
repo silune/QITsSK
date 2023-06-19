@@ -183,23 +183,13 @@ test : ∀{A}{B} → NormProof.K• {A}{B}{NormProof.indT A}{NormProof.indT B} �
 test = refl
   
 normK₁Morph : ∀{A}{B}{u : I.Tm A} → norm (I.K I.$ u) ≡ (K₁ {A}{B} (norm u))
-normK₁Morph {A}{B}{u} =
-   let A• = NormProof.indT A in
-   let B• = NormProof.indT B in
-   isNormal.nf (pr₂ (NormProof.ind {B I.⇒ A}{B• NormProof.⇒• A•} (I.K I.$ u))) ≡⟨ cong⟨ (λ x → isNormal.nf (pr₂ x)) ⟩ (NormProof.ind$ {A}{B I.⇒ A}{I.K}{u}) ⟩
-   refl
+normK₁Morph {A}{B}{u} = cong⟨ (λ x → isNormal.nf (pr₂ x)) ⟩ (NormProof.ind$ {A}{B I.⇒ A}{I.K}{u})
 
 normSMorph : ∀{A}{B}{C} → norm (I.S {A}{B}{C}) ≡ (S₀ {A}{B}{C})
 normSMorph = refl
 
 normS₁Morph : ∀{A}{B}{C}{f : I.Tm (A I.⇒ B I.⇒ C)} → norm (I.S I.$ f) ≡ S₁ (norm f)
-normS₁Morph {A}{B}{C}{f} =
-  let A• = NormProof.indT A in
-  let B• = NormProof.indT B in
-  let C• = NormProof.indT C in
-  isNormal.nf (pr₂ (NormProof.ind {(A I.⇒ B) I.⇒ A I.⇒ C}{(A• NormProof.⇒• B•) NormProof.⇒• A• NormProof.⇒• C•} (I.S I.$ f)))
-    ≡⟨ cong⟨ (λ x → isNormal.nf (pr₂ x)) ⟩ (NormProof.ind$ {A I.⇒ B I.⇒ C}{(A I.⇒ B) I.⇒ A I.⇒ C}{I.S}{f}) ⟩
-  refl
+normS₁Morph {A}{B}{C}{f} = cong⟨ (λ x → isNormal.nf (pr₂ x)) ⟩ (NormProof.ind$ {A I.⇒ B I.⇒ C}{(A I.⇒ B) I.⇒ A I.⇒ C}{I.S}{f})
 
 normS₂Morph : ∀{A}{B}{C}{f : I.Tm (A I.⇒ B I.⇒ C)}{g : I.Tm (A I.⇒ B)} → norm (I.S I.$ f I.$ g) ≡ S₂ (norm f) (norm g)
 normS₂Morph {A}{B}{C}{f}{g} =
@@ -222,12 +212,12 @@ normS₂Morph {A}{B}{C}{f}{g} =
 
 normStability : ∀{A} → (nf : NF A) → norm ⌜ nf ⌝ ≡ nf
 normStability K₀       = refl
-normStability (K₁ u)   = norm ⌜ K₁ u ⌝     ≡⟨ normK₁Morph ⟩
-                         K₁ (norm ⌜ u ⌝)   ≡⟨ cong⟨ K₁ ⟩ (normStability u) ⟩
+normStability (K₁ u)   = norm ⌜ K₁ u ⌝                 ≡⟨ normK₁Morph ⟩
+                         K₁ (norm ⌜ u ⌝)               ≡⟨ cong⟨ K₁ ⟩ (normStability u) ⟩
                          refl
 normStability S₀       = refl
-normStability (S₁ f)   = norm ⌜ S₁ f ⌝     ≡⟨ normS₁Morph ⟩
-                         S₁ (norm ⌜ f ⌝)   ≡⟨ cong⟨ S₁ ⟩ (normStability f) ⟩
+normStability (S₁ f)   = norm ⌜ S₁ f ⌝                 ≡⟨ normS₁Morph ⟩
+                         S₁ (norm ⌜ f ⌝)               ≡⟨ cong⟨ S₁ ⟩ (normStability f) ⟩
                          refl
 normStability (S₂ f g) = norm ⌜ S₂ f g ⌝               ≡⟨ normS₂Morph ⟩
                          S₂ (norm ⌜ f ⌝) (norm ⌜ g ⌝)  ≡⟨ cong⟨ (λ x → S₂ x (norm ⌜ g ⌝)) ⟩ (normStability f) ⟩
