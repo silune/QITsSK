@@ -32,35 +32,6 @@ module I where
     Sβ  : {A B C : Ty}{f : Tm (A ⇒ B ⇒ C)}{g : Tm (A ⇒ B)}{x : Tm A} → S $ f $ g $ x ≡ f $ x $ (g $ x)
 
 -- Then we can define the general form of a Model and a Dependent Model
--- (Maybe it could be interesting to define Models without postulate using Dependent Models ?)
-
-record Model {l l'} : Set (lsuc (l ⊔ l')) where
-  infixr 5 _⇒_
-  infixl 5 _$_
-
-  field
-    Ty  : Set l
-    ι   : Ty
-    _⇒_ : Ty → Ty → Ty
-    Tm  : Ty → Set l'
-    _$_ : ∀{A B}  → Tm (A ⇒ B) → Tm A → Tm B
-    K   : ∀{A B}   → Tm (A ⇒ B ⇒ A)
-    S   : ∀{A B C} → Tm ((A ⇒ B ⇒ C) ⇒ (A ⇒ B) ⇒ A ⇒ C)
-    Kβ  : ∀{A B}{u : Tm A}{v : Tm B} →
-          K $ u $ v ≡ u
-    Sβ  : ∀{A B C}{f : Tm (A ⇒ B ⇒ C)}{g : Tm (A ⇒ B)}{u : Tm A} →
-          S $ f $ g $ u ≡ f $ u $ (g $ u)
-  
-  ⟦_⟧T : I.Ty → Ty
-  ⟦ I.ι ⟧T = ι
-  ⟦ A I.⇒ B ⟧T = ⟦ A ⟧T ⇒ ⟦ B ⟧T
-
-  postulate
-    ⟦_⟧ : ∀{A} → I.Tm A → Tm ⟦ A ⟧T
-    ⟦$⟧ : ∀{A B} → {f : I.Tm (A I.⇒ B)} → {x : I.Tm A} → ⟦ f I.$ x ⟧ ≡ ⟦ f ⟧ $ ⟦ x ⟧
-    ⟦K⟧ : ∀{A B} → ⟦ I.K {A} {B} ⟧ ≡ K {⟦ A ⟧T} {⟦ B ⟧T}
-    ⟦S⟧ : ∀{A B C} → ⟦ I.S {A} {B} {C} ⟧ ≡ S {⟦ A ⟧T} {⟦ B ⟧T} {⟦ C ⟧T}
-    {-# REWRITE ⟦$⟧ ⟦K⟧ ⟦S⟧ #-}
 
 record DepModel {l} {l'} : Set (lsuc (l ⊔ l')) where
   infixr 5 _⇒•_
@@ -98,6 +69,44 @@ record DepModel {l} {l'} : Set (lsuc (l ⊔ l')) where
     indS : ∀{A B C} →
            ind (I.S {A} {B} {C}) ≡ S• {A} {B} {C} {indT A} {indT B} {indT C}
     {-# REWRITE ind$ indK indS #-}
+
+record Model {l l'} : Set (lsuc (l ⊔ l')) where
+  infixr 5 _⇒_
+  infixl 5 _$_
+
+  field
+    Ty  : Set l
+    ι   : Ty
+    _⇒_ : Ty → Ty → Ty
+    Tm  : Ty → Set l'
+    _$_ : ∀{A B}   → Tm (A ⇒ B) → Tm A → Tm B
+    K   : ∀{A B}   → Tm (A ⇒ B ⇒ A)
+    S   : ∀{A B C} → Tm ((A ⇒ B ⇒ C) ⇒ (A ⇒ B) ⇒ A ⇒ C)
+    Kβ  : ∀{A B}{u : Tm A}{v : Tm B} →
+          K $ u $ v ≡ u
+    Sβ  : ∀{A B C}{f : Tm (A ⇒ B ⇒ C)}{g : Tm (A ⇒ B)}{u : Tm A} →
+          S $ f $ g $ u ≡ f $ u $ (g $ u)
+  
+  ⟦_⟧T : I.Ty → Ty
+  ⟦ I.ι ⟧T = ι
+  ⟦ A I.⇒ B ⟧T = ⟦ A ⟧T ⇒ ⟦ B ⟧T
+
+  ModelRec : DepModel
+  ModelRec = record
+    { Ty•  = λ _ -> Ty
+    ; ι•   = ι
+    ; _⇒•_ = _⇒_
+    ; Tm•  = λ A _ → Tm A
+    ; _$•_ = _$_
+    ; K•   = K
+    ; S•   = S
+    ; Kβ•  = λ {A}{_}{_}{_}{u}{_}{v} → transpEq {_}{I.Tm A}{_}{_}{I.K I.$ u I.$ v}{u} Kβ
+    ; Sβ•  = λ {_}{_}{C}{_}{_}{_}{u}{_}{v}{_}{x} → transpEq {_}{I.Tm C}{_}{_}{I.S I.$ u I.$ v I.$ x}{u I.$ x I.$ (v I.$ x)} Sβ
+    }
+  module ModelRec = DepModel ModelRec
+
+  ⟦_⟧ : ∀{A} → I.Tm A → Tm ⟦ A ⟧T
+  ⟦_⟧ = ModelRec.ind
 
 --------------------------------------------------
 
@@ -170,6 +179,8 @@ module NormProof = DepModel NormProof
 
 norm : ∀{A} → I.Tm A → NF A
 norm {A} u = isNormal.nf (pr₂ (NormProof.indT A) u (NormProof.ind {A}{NormProof.indT A} u))
+
+--------------------------------------------------
 
 -- Homomorphism
 
