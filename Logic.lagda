@@ -45,4 +45,9 @@ module Logic where
   _×_ : ∀{l}{l'} (A : Set l) (B : Set l') → Set (l ⊔ l')
   A × B = Σ A (λ _ → B)
 
+  data _⨄_ {l}{l'} (A : Set l) (B : Set l') : Set (l ⊔ l') where
+    ι₁ : A → A ⨄ B
+    ι₂ : B → A ⨄ B
+       
+
 \end{code}

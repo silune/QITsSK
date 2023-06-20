@@ -5,6 +5,7 @@
 {-# OPTIONS --prop --rewriting #-}
 
 open import Logic
+open import Agda.Primitive
 
 module Equality where
 
@@ -25,6 +26,14 @@ module Equality where
     constructor ⟪_⟫
     field unfold : A
   open Lift public
+
+  data Single {l}{A : Set l} (x : A) : Set l where
+    one : (x' : A) → (x ≡ x') → Single x
+ 
+  single : ∀{l}{A : Set l} → (x : A) → Single x
+  single x = one x refl
+    
+  open Single public
     
   -- Properities
 
