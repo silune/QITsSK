@@ -139,49 +139,34 @@ module _ where
 
 -- Normalisation
 
--- this record is used to transport the equality with the normal form along each step of reduction during the normalization
--- maybe a more elegant solution exists ?
-record isNormal {A} (u : I.Tm A) : Set where
-  constructor NFis
-  field
-    nf : NF A
-    nfeq : ⌜ nf ⌝ ≡ u
-
 NormProof : DepModel
 NormProof = record
-  { Ty•  = λ A → Σ (I.Tm A → Set) (λ RED → (u : I.Tm A) → RED u → isNormal u)
+  { Ty•  = λ A → Σ (I.Tm A → Set) (λ RED → (u : I.Tm A) → RED u → NF A)
   ; ι•   = (λ _ → Lift ⊥) , λ _ p → ⊥-elim (unfold p) -- there is no term of type ι
   ; _⇒•_ = λ {A}{B} (REDA , _) (REDB , _) →
-             (λ u → ((v : I.Tm A) → REDA v → REDB (u I.$ v)) × (isNormal u)) ,
+             (λ u → ((v : I.Tm A) → REDA v → REDB (u I.$ v)) × (NF (A I.⇒ B))) ,
              (λ u u• → pr₂ u•)
   ; Tm•  = pr₁
   ; _$•_ = λ {_}{_}{_}{_}{_}{v} u• v• →
            (pr₁ u• v v•)
   ; K•   = λ {_}{_}{A•} →
            (λ u u• → (λ v v• → transp⟨ pr₁ A• ⟩ (symetry I.Kβ) u•) ,
-                     NFis (K₁ (isNormal.nf (pr₂ A• u u•)))
-                          (cong⟨ (λ x → I.K I.$ x) ⟩ (isNormal.nfeq (pr₂ A• u u•)))) ,
-           NFis K₀ refl
+                     K₁ (pr₂ A• u u•)) ,
+           K₀
   ; S•   = λ {A}{B}{C}{A•}{B•}{C•} →
-           (λ f f• → let nf_f = isNormal.nf (pr₂ f•) in
-                     let nfeq_f = isNormal.nfeq (pr₂ f•) in
-             (λ g g• → let nf_g = isNormal.nf (pr₂ g•) in
-                       let nfeq_g = isNormal.nfeq (pr₂ g•) in
+           (λ f f• →
+             (λ g g• →
                (λ x x• → transp⟨ pr₁ C• ⟩ (symetry I.Sβ) (pr₁ (pr₁ f• x x•) (g I.$ x) (pr₁ g• x x• ))) ,
-               NFis (S₂ nf_f nf_g)
-                    (I.S I.$ ⌜ nf_f ⌝ I.$ ⌜ nf_g ⌝ ≡⟨ cong⟨ (λ x → I.S I.$ ⌜ nf_f ⌝ I.$ x) ⟩ nfeq_g ⟩
-                     I.S I.$ ⌜ nf_f ⌝ I.$    g     ≡⟨ cong⟨ (λ x → I.S I.$ x I.$ g) ⟩ nfeq_f ⟩
-                     refl )) ,
-             NFis (S₁ nf_f)
-                  (cong⟨ (λ x → I.S I.$ x) ⟩ nfeq_f)) ,
-           NFis S₀ refl
+               (S₂ (pr₂ f•) (pr₂ g•))) ,
+             (S₁ (pr₂ f•))) ,
+           S₀
   ; Kβ•  = λ {_}{_}{A•} → transptransp (pr₁ A•) (symetry I.Kβ)
   ; Sβ•  = λ {_}{_}{_}{_}{_}{C•} → transptransp (pr₁ C•) (symetry I.Sβ){I.Sβ}
   }
 module NormProof = DepModel NormProof
 
 norm : ∀{A} → I.Tm A → NF A
-norm {A} u = isNormal.nf (pr₂ (NormProof.indT A) u (NormProof.ind {A} u))
+norm {A} u = pr₂ (NormProof.indT A) u (NormProof.ind {A} u)
 
 --------------------------------------------------
 
@@ -207,7 +192,45 @@ normS₂Morph = refl
 -- inclusion is a homomorphism by definition
 
 --------------------------------------------------
- 
+
+-- Completeness
+-- we prove the completeness using a DepModel, exactly as the same way as normalisation
+
+CompletenessProof : DepModel
+CompletenessProof = record
+  { Ty•  = λ A → Σ (I.Tm A → Set) (λ RED → (u : I.Tm A) → RED u → Lift (⌜ norm u ⌝ ≡ u))
+  ; ι•   = (λ _ → Lift ⊥) , λ _ p → ⊥-elim (unfold p) -- there is no term of type ι
+  ; _⇒•_ = λ {A}{B} (REDA , _) (REDB , _) →
+             (λ u → ((v : I.Tm A) → REDA v → REDB (u I.$ v)) × Lift (⌜ norm u ⌝ ≡ u)) ,
+             (λ u u• → pr₂ u• )
+  ; Tm•  = pr₁
+  ; _$•_ = λ {_}{_}{_}{_}{_}{v} u• v• →
+           (pr₁ u• v v•)
+  ; K•   = λ {_}{_}{A•} →
+           (λ u u• → (λ v v• → transp⟨ pr₁ A• ⟩ (symetry I.Kβ) u•) ,
+                     ⟪ cong⟨ (λ x → I.K I.$ x) ⟩ (unfold (pr₂ A• u u•)) ⟫) ,
+           ⟪ refl ⟫
+  ; S•   = λ {A}{B}{C}{A•}{B•}{C•} →
+           (λ f f• →
+             (λ g g• →
+               (λ x x• → transp⟨ pr₁ C• ⟩ (symetry I.Sβ) (pr₁ (pr₁ f• x x•) (g I.$ x) (pr₁ g• x x• ))) ,
+               ⟪ I.S I.$ ⌜ norm f ⌝ I.$ ⌜ norm g ⌝ ≡⟨ cong⟨ (λ x → I.S I.$ ⌜ norm f ⌝ I.$ x) ⟩ (unfold (pr₂ g•)) ⟩
+                     I.S I.$ ⌜ norm f ⌝ I.$    g     ≡⟨ cong⟨ (λ x → I.S I.$ x I.$ g) ⟩ (unfold (pr₂ f•)) ⟩
+                     refl ⟫) ,
+             ⟪ cong⟨ (λ x → I.S I.$ x) ⟩ (unfold (pr₂ f•)) ⟫) ,
+           ⟪ refl ⟫
+  ; Kβ•  = λ {_}{_}{A•} → transptransp (pr₁ A•) (symetry I.Kβ)
+  ; Sβ•  = λ {_}{_}{_}{_}{_}{C•} → transptransp (pr₁ C•) (symetry I.Sβ){I.Sβ}
+  }
+module CompletenessProof = DepModel CompletenessProof
+
+completeness : ∀{A} → (u : I.Tm A) → ⌜ norm u ⌝ ≡ u
+completeness {A} u =
+  let A• = CompletenessProof.indT A in
+  unfold (pr₂ A• u (CompletenessProof.ind {A} u))
+
+--------------------------------------------------
+
 -- Stability
 
 -- normalisation stability
@@ -226,13 +249,66 @@ normStability (S₂ f g) = norm ⌜ S₂ f g ⌝               ≡⟨ refl ⟩
                          S₂ f (norm ⌜ g ⌝)             ≡⟨ cong⟨ (S₂ f) ⟩ (normStability g) ⟩
                          refl
 
--- completeness
--- this has been done during the normalisation, we just extract the proof
+--------------------------------------------------
 
-completeness : ∀{A} → (u : I.Tm A) → ⌜ norm u ⌝ ≡ u
-completeness {A} u =
-  let A• = NormProof.indT A in
-  isNormal.nfeq (pr₂ A• u (NormProof.ind {A} u))
-  
+-- Equality Decidability
+-- Using normalisation we can prove that equality of terms is decidable
+
+-- fisrt on types :
+
+TyEqDec : (A : I.Ty ) → (B : I.Ty) → (A ≡ B) ∨ ¬ (A ≡ B)
+TyEqDec  I.ι       I.ι        = left refl
+TyEqDec (A I.⇒ B)  I.ι        = right (λ where ())
+TyEqDec  I.ι      (A  I.⇒ B ) = right (λ where ())
+TyEqDec (A I.⇒ B) (A' I.⇒ B') with TyEqDec A A' | TyEqDec B B'
+... | left refl  | left refl  = left refl
+... | right A≠A' | _          = right (λ {refl → A≠A' refl})
+... | _          | right B≠B' = right (λ {refl → B≠B' refl})
+
+-- then on normal forms ...
+
+NfEqDec : ∀{A} → (u : NF A) → (v : NF A) → (u ≡ v) ∨ ¬ (u ≡ v)
+NfEqDec (K₀) (K₁ _)     = right (λ where ())
+NfEqDec (K₀) (S₁ _)     = right (λ where ())
+NfEqDec (K₀) (S₂ _ _)   = right (λ where ())
+NfEqDec (K₁ _) (K₀)     = right (λ where ())
+NfEqDec (K₁ _) (S₀)     = right (λ where ())
+NfEqDec (K₁ _) (S₁ _)   = right (λ where ())
+NfEqDec (K₁ _) (S₂ _ _) = right (λ where ())
+NfEqDec (S₀) (S₂ _ _)   = right (λ where ())
+NfEqDec (S₀) (K₁ _)     = right (λ where ())
+NfEqDec (S₁ _) (S₂ _ _) = right (λ where ())
+NfEqDec (S₁ _) (K₀)     = right (λ where ())
+NfEqDec (S₁ _) (K₁ _)   = right (λ where ())
+NfEqDec (S₂ _ _) (S₀)   = right (λ where ())
+NfEqDec (S₂ _ _) (S₁ _) = right (λ where ())
+NfEqDec (S₂ _ _) (K₀)   = right (λ where ())
+NfEqDec (S₂ _ _) (K₁ _) = right (λ where ())
+NfEqDec (K₀) (K₀)       = left refl
+NfEqDec (K₁ u) (K₁ u') with NfEqDec u u'
+...        | left refl  = left refl
+...        | right u≠u' = right (λ {refl → u≠u' refl})
+NfEqDec (S₀) (S₀)       = left refl
+NfEqDec (S₁ u) (S₁ u') with NfEqDec u u'
+...        | left refl  = left refl
+...        | right u≠u' = right (λ {refl → u≠u' refl})
+NfEqDec (S₂ {_}{B}{_} u v) (S₂ {_}{B'}{_} u' v') with TyEqDec B B'
+...                                              | left refl with NfEqDec u u' | NfEqDec v v'
+...                                                             | left refl  | left refl   = left refl
+...                                                             | right u≠u' | _          = right (λ {refl → u≠u' refl}) 
+...                                                             | _          | right v≠v' = right (λ {refl → v≠v' refl})   
+NfEqDec (S₂ {_}{B}{_} u v) (S₂ {_}{B'}{_} u' v') | right B≠B' = right (λ {refl → B≠B' refl})
+
+-- and finaly on terms :
+
+TmEqDec : ∀{A}{u : I.Tm A}{v : I.Tm A} → (u ≡ v) ∨ ¬ (u ≡ v)
+TmEqDec {A}{u}{v} with NfEqDec (norm u) (norm v)
+...                     | left  nu=nv = left (u          ≡⟨ symetry (completeness u) ⟩
+                                              ⌜ norm u ⌝ ≡⟨ cong⟨ ⌜_⌝ ⟩ nu=nv ⟩
+                                              ⌜ norm v ⌝ ≡⟨ completeness v ⟩
+                                              refl )
+...                     | right nu≠nv = right (λ {refl → nu≠nv refl})
 
 \end{code}
+ 
+--------------------------------------------------
