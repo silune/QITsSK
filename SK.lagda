@@ -61,14 +61,16 @@ record DepModel {l} {l'} : Set (lsuc (l ⊔ l')) where
   indT (A I.⇒ B) = (indT A) ⇒• (indT B)
     
   postulate
-    ind  : ∀{A}{A• : Ty• A} → (u : I.Tm A) → Tm• A• u
+    ind  : ∀{A} → (u : I.Tm A) → Tm• (indT A) u
     ind$ : ∀{A B}{u : I.Tm (A I.⇒ B)}{v : I.Tm A} →
-           ind {B} {indT B} (u I.$ v) ≡ _$•_ {A} {B} {indT A} {indT B} (ind u) (ind v)
+           ind (u I.$ v) ≡ _$•_ {A} {B} {indT A} {indT B} {u} {v} (ind u) (ind v)
     indK : ∀{A B} →
            ind (I.K {A} {B}) ≡ K• {A} {B} {indT A} {indT B}
     indS : ∀{A B C} →
            ind (I.S {A} {B} {C}) ≡ S• {A} {B} {C} {indT A} {indT B} {indT C}
     {-# REWRITE ind$ indK indS #-}
+
+-- then the model using the dependent model
 
 record Model {l l'} : Set (lsuc (l ⊔ l')) where
   infixr 5 _⇒_
@@ -86,10 +88,6 @@ record Model {l l'} : Set (lsuc (l ⊔ l')) where
           K $ u $ v ≡ u
     Sβ  : ∀{A B C}{f : Tm (A ⇒ B ⇒ C)}{g : Tm (A ⇒ B)}{u : Tm A} →
           S $ f $ g $ u ≡ f $ u $ (g $ u)
-  
-  ⟦_⟧T : I.Ty → Ty
-  ⟦ I.ι ⟧T = ι
-  ⟦ A I.⇒ B ⟧T = ⟦ A ⟧T ⇒ ⟦ B ⟧T
 
   ModelRec : DepModel
   ModelRec = record
@@ -105,6 +103,9 @@ record Model {l l'} : Set (lsuc (l ⊔ l')) where
     }
   module ModelRec = DepModel ModelRec
 
+  ⟦_⟧T : I.Ty → Ty
+  ⟦_⟧T = ModelRec.indT
+
   ⟦_⟧ : ∀{A} → I.Tm A → Tm ⟦ A ⟧T
   ⟦_⟧ = ModelRec.ind
 
@@ -115,7 +116,9 @@ record Model {l l'} : Set (lsuc (l ⊔ l')) where
 
 module _ where
   open I
-  
+
+  -- data isNf (A : Ty) : Tm A → Set
+
   data NF : I.Ty → Set where
     K₀ : ∀{A B} → NF (A ⇒ B ⇒ A)
     K₁ : ∀{A B} → NF A → NF (B ⇒ A)
@@ -125,7 +128,7 @@ module _ where
 
   -- Then we can give the translations from a form to another :
 
--- Inclusion
+  -- Inclusion
 
   ⌜_⌝ : ∀{A} → NF A → Tm A
   ⌜ K₀ ⌝ = K
@@ -178,42 +181,30 @@ NormProof = record
 module NormProof = DepModel NormProof
 
 norm : ∀{A} → I.Tm A → NF A
-norm {A} u = isNormal.nf (pr₂ (NormProof.indT A) u (NormProof.ind {A}{NormProof.indT A} u))
+norm {A} u = isNormal.nf (pr₂ (NormProof.indT A) u (NormProof.ind {A} u))
 
 --------------------------------------------------
 
 -- Homomorphism
 
--- refl should work ? because of rewriting rules but I have to specify a ton of implicit parameters
+-- in fact normalisation is a homomorphisme by defition
 
 normK₀Morph : ∀{A}{B} → norm (I.K {A}{B}) ≡ (K₀ {A}{B})
 normK₀Morph = refl
 
-test : ∀{A}{B} → NormProof.K• {A}{B}{NormProof.indT A}{NormProof.indT B} ≡
-                 NormProof.ind {A I.⇒ B I.⇒ A}{NormProof.indT (A I.⇒ B I.⇒ A)} (I.K {A}{B})
-test = refl
-  
-normK₁Morph : ∀{A}{B}{u : I.Tm A} → norm (I.K I.$ u) ≡ (K₁ {A}{B} (norm u))
-normK₁Morph {A}{B}{u} = cong⟨ (λ x → isNormal.nf (pr₂ x)) ⟩ (NormProof.ind$ {A}{B I.⇒ A}{I.K}{u})
+normK₁Morph : ∀{A}{B}{u : I.Tm A} → norm (I.K {A}{B} I.$ u) ≡ (K₁ {A}{B} (norm u))
+normK₁Morph = refl -- rewrite (NormProof.ind$ {A}{B I.⇒ A}{I.K}{u}) = refl
 
 normSMorph : ∀{A}{B}{C} → norm (I.S {A}{B}{C}) ≡ (S₀ {A}{B}{C})
 normSMorph = refl
 
 normS₁Morph : ∀{A}{B}{C}{f : I.Tm (A I.⇒ B I.⇒ C)} → norm (I.S I.$ f) ≡ S₁ (norm f)
-normS₁Morph {A}{B}{C}{f} = cong⟨ (λ x → isNormal.nf (pr₂ x)) ⟩ (NormProof.ind$ {A I.⇒ B I.⇒ C}{(A I.⇒ B) I.⇒ A I.⇒ C}{I.S}{f})
+normS₁Morph = refl
 
 normS₂Morph : ∀{A}{B}{C}{f : I.Tm (A I.⇒ B I.⇒ C)}{g : I.Tm (A I.⇒ B)} → norm (I.S I.$ f I.$ g) ≡ S₂ (norm f) (norm g)
-normS₂Morph {A}{B}{C}{f}{g} =
-  let A• = NormProof.indT A in
-  let B• = NormProof.indT B in
-  let C• = NormProof.indT C in
-  isNormal.nf (pr₂ (NormProof.ind {A I.⇒ C}{A• NormProof.⇒• C•} (I.S I.$ f I.$ g)))
-    ≡⟨ cong⟨ (λ x → isNormal.nf (pr₂ x)) ⟩ (NormProof.ind$ {A I.⇒ B}{A I.⇒ C}{I.S I.$ f}{g}) ⟩
-  isNormal.nf (pr₂ (pr₁ (NormProof.ind {(A I.⇒ B) I.⇒ A I.⇒ C}{(A• NormProof.⇒• B•) NormProof.⇒• A• NormProof.⇒• C•}(I.S I.$ f)) g (NormProof.ind {A I.⇒ B}{A• NormProof.⇒• B•} g)))
-    ≡⟨ cong⟨ (λ x → isNormal.nf (pr₂ (pr₁ x g (NormProof.ind {A I.⇒ B}{A• NormProof.⇒• B•} g)))) ⟩ (NormProof.ind$ {A I.⇒ B I.⇒ C}{(A I.⇒ B) I.⇒ A I.⇒ C}{I.S}{f}) ⟩
-  refl
+normS₂Morph = refl
 
--- inclusion is homomorphism by definition
+-- inclusion is a homomorphism by definition
 
 --------------------------------------------------
  
@@ -227,21 +218,21 @@ normStability (K₁ u)   = norm ⌜ K₁ u ⌝                 ≡⟨ normK₁Mo
                          K₁ (norm ⌜ u ⌝)               ≡⟨ cong⟨ K₁ ⟩ (normStability u) ⟩
                          refl
 normStability S₀       = refl
-normStability (S₁ f)   = norm ⌜ S₁ f ⌝                 ≡⟨ normS₁Morph ⟩
+normStability (S₁ f)   = norm ⌜ S₁ f ⌝                 ≡⟨ refl ⟩
                          S₁ (norm ⌜ f ⌝)               ≡⟨ cong⟨ S₁ ⟩ (normStability f) ⟩
                          refl
-normStability (S₂ f g) = norm ⌜ S₂ f g ⌝               ≡⟨ normS₂Morph ⟩
+normStability (S₂ f g) = norm ⌜ S₂ f g ⌝               ≡⟨ refl ⟩
                          S₂ (norm ⌜ f ⌝) (norm ⌜ g ⌝)  ≡⟨ cong⟨ (λ x → S₂ x (norm ⌜ g ⌝)) ⟩ (normStability f) ⟩
                          S₂ f (norm ⌜ g ⌝)             ≡⟨ cong⟨ (S₂ f) ⟩ (normStability g) ⟩
                          refl
 
--- inclusion stability
+-- completeness
 -- this has been done during the normalisation, we just extract the proof
 
-inclusionStability : ∀{A} → (u : I.Tm A) → ⌜ norm u ⌝ ≡ u
-inclusionStability {A} u =
+completeness : ∀{A} → (u : I.Tm A) → ⌜ norm u ⌝ ≡ u
+completeness {A} u =
   let A• = NormProof.indT A in
-  isNormal.nfeq (pr₂ A• u (NormProof.ind {A}{A•} u))
+  isNormal.nfeq (pr₂ A• u (NormProof.ind {A} u))
   
 
 \end{code}
