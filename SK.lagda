@@ -5,6 +5,7 @@
 open import Agda.Primitive
 open import Equality
 open import Logic
+open import Nat
 
 module SK where
 
@@ -267,23 +268,23 @@ TyEqDec (A I.⇒ B) (A' I.⇒ B') with TyEqDec A A' | TyEqDec B B'
 
 -- then on normal forms ...
 
-NfEqDec : ∀{A} → (u : NF A) → (v : NF A) → (u ≡ v) ∨ ¬ (u ≡ v)
-NfEqDec (K₀) (K₁ _)     = right (λ where ())
-NfEqDec (K₀) (S₁ _)     = right (λ where ())
-NfEqDec (K₀) (S₂ _ _)   = right (λ where ())
-NfEqDec (K₁ _) (K₀)     = right (λ where ())
-NfEqDec (K₁ _) (S₀)     = right (λ where ())
-NfEqDec (K₁ _) (S₁ _)   = right (λ where ())
-NfEqDec (K₁ _) (S₂ _ _) = right (λ where ())
-NfEqDec (S₀) (S₂ _ _)   = right (λ where ())
-NfEqDec (S₀) (K₁ _)     = right (λ where ())
-NfEqDec (S₁ _) (S₂ _ _) = right (λ where ())
-NfEqDec (S₁ _) (K₀)     = right (λ where ())
-NfEqDec (S₁ _) (K₁ _)   = right (λ where ())
-NfEqDec (S₂ _ _) (S₀)   = right (λ where ())
-NfEqDec (S₂ _ _) (S₁ _) = right (λ where ())
-NfEqDec (S₂ _ _) (K₀)   = right (λ where ())
-NfEqDec (S₂ _ _) (K₁ _) = right (λ where ())
+NfEqDec : ∀{A} → (u v : NF A) → (u ≡ v) ∨ ¬ (u ≡ v)
+NfEqDec (K₀) (K₁ _)     = right (λ ())
+NfEqDec (K₀) (S₁ _)     = right (λ ())
+NfEqDec (K₀) (S₂ _ _)   = right (λ ())
+NfEqDec (K₁ _) (K₀)     = right (λ ())
+NfEqDec (K₁ _) (S₀)     = right (λ ())
+NfEqDec (K₁ _) (S₁ _)   = right (λ ())
+NfEqDec (K₁ _) (S₂ _ _) = right (λ ())
+NfEqDec (S₀) (S₂ _ _)   = right (λ ())
+NfEqDec (S₀) (K₁ _)     = right (λ ())
+NfEqDec (S₁ _) (S₂ _ _) = right (λ ())
+NfEqDec (S₁ _) (K₀)     = right (λ ())
+NfEqDec (S₁ _) (K₁ _)   = right (λ ())
+NfEqDec (S₂ _ _) (S₀)   = right (λ ())
+NfEqDec (S₂ _ _) (S₁ _) = right (λ ())
+NfEqDec (S₂ _ _) (K₀)   = right (λ ())
+NfEqDec (S₂ _ _) (K₁ _) = right (λ ())
 NfEqDec (K₀) (K₀)       = left refl
 NfEqDec (K₁ u) (K₁ u') with NfEqDec u u'
 ...        | left refl  = left refl
@@ -299,6 +300,26 @@ NfEqDec (S₂ {_}{B}{_} u v) (S₂ {_}{B'}{_} u' v') with TyEqDec B B'
 ...                                                             | _          | right v≠v' = right (λ {refl → v≠v' refl})   
 NfEqDec (S₂ {_}{B}{_} u v) (S₂ {_}{B'}{_} u' v') | right B≠B' = right (λ {refl → B≠B' refl})
 
+\end{code}
+
+-- Maybe it could be easier with :
+
+Nf_to_LBT : ∀{A} → NF A → LBT
+Nf_to_LBT K₀ = Leaf 𝟘
+Nf_to_LBT (K₁ u) = Node (Leaf 𝟙) (Nf_to_LBT u)
+Nf_to_LBT S₀ = Leaf 𝟚
+Nf_to_LBT (S₁ u) = Node (Leaf 𝟛) (Nf_to_LBT u)
+Nf_to_LBT (S₂ u v) = Node (Leaf 𝟜) (Node (Nf_to_LBT u) (Nf_to_LBT v))
+
+postulate Inject : ∀{A} → (u v : NF A) → (Nf_to_LBT u) ≡ (Nf_to_LBT v) → u ≡ v
+
+NfEqDec : ∀{A} → (u v : NF A) → (u ≡ v) ∨ ¬ (u ≡ v)
+NfEqDec u v with LBTDecEq (Nf_to_LBT u) (Nf_to_LBT v)
+... | left e = left (Inject u v e)
+... | right tu≠tv = right (λ {refl → tu≠tv refl})
+
+\begin{code}
+
 -- and finaly on terms :
 
 TmEqDec : ∀{A}{u : I.Tm A}{v : I.Tm A} → (u ≡ v) ∨ ¬ (u ≡ v)
@@ -309,6 +330,10 @@ TmEqDec {A}{u}{v} with NfEqDec (norm u) (norm v)
                                               refl )
 ...                     | right nu≠nv = right (λ {refl → nu≠nv refl})
 
-\end{code}
- 
 --------------------------------------------------
+
+-- Then we can define a strict syntax :
+
+
+\end{code}
+
