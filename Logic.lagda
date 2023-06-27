@@ -6,7 +6,7 @@ open import Agda.Primitive
 
 module Logic where
 
-  -- infixr 4 ⟨_,_⟩
+  infixr 4 _,_
   infixr 5 _∨_
   infixr 6 _∧_
 
@@ -19,6 +19,15 @@ module Logic where
 
   ⊥-elim : ∀{l}{A : Set l} → ⊥ → A
   ⊥-elim ()
+
+  -- Empty type Set
+  data ∅ {l} : Set l where
+
+  ∅-elim : ∀{l}{l'}{A : Set l} → ∅ {l'} → A
+  ∅-elim ()
+
+  ∅-elim-prop : ∀{l}{l'}{A : Prop l} → ∅ {l'} → A
+  ∅-elim-prop ()
   
   -- Negation
   ¬ : Prop → Prop
@@ -26,7 +35,7 @@ module Logic where
 
   -- Conjunction
   data _∧_ (A B : Prop) : Prop where
-    _,_ : A → B → A ∧ B
+    _∧,_ : A → B → A ∧ B
 
   -- Disjunction
   data _∨_ (A B : Prop) : Prop where

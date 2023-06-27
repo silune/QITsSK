@@ -9,8 +9,9 @@ open import Agda.Primitive
 
 module Equality where
 
-  infix 4 _≡_
+  infixr 4 _≡_
   infixr 2 _≡⟨_⟩_
+  infixr 5 _∘_
 
   id : ∀{l}{A : Set l} → A → A
   id = λ x → x
@@ -58,6 +59,11 @@ module Equality where
   postulate transprefl : ∀{l}{A : Set l}{l'}{P : A → Set l'}{a : A}{e : a ≡ a}{p : P a} → transp⟨ P ⟩ e p ≡ p
   {-# REWRITE transprefl #-}
 
+  transpΣ : ∀{l}{l'} → {A : Set l}{B : A → Set l'}{x x' : A} → (e : x ≡ x') →
+                                                  {y : B x}{y' : B x'} → transp⟨ B ⟩ e y ≡ y' →
+                                                  (x , y) ≡ (x' , y')
+  transpΣ refl refl = refl
+
   transptransp : ∀{ℓ}{A : Set ℓ}{ℓ'}(P : A → Set ℓ'){a a' a'' : A}(e : a ≡ a'){e' : a' ≡ a''}{p : P a} → transp⟨ P ⟩ e' (transp⟨ P ⟩ e p) ≡ transp⟨ P ⟩ (a ≡⟨ e ⟩ e') p
   transptransp P refl {refl} = refl
 
@@ -73,6 +79,27 @@ module Equality where
   postulate funext  : ∀{l}{A : Set l}{l'}{B : Set l'}{f g : A → B} → ((x : A) → f x ≡ g x) → f ≡ g
   funexti : ∀{l}{A : Set l}{l'}{B : Set l'}{f g : A → B} → ({x : A} → f x ≡ g x) → f ≡ g
   funexti p = funext (λ a → p {x = a})
+
+  _∘_ : ∀{l}{A : Set l}{l'}{B : Set l'}{l''}{C : Set l''} → (f : B → C) → (g : A → B) → (A → C)
+  f ∘ g = λ x → f (g x)
+
+  concatdiag : ∀{A B C A' B' C' : Set} → (f : A → B) → (g : B → C) →
+                                             (a : A → A') → (b : B → B') → (c : C → C') →
+                                             (f' : A' → B') → (g' : B' → C') →
+                                             (b ∘ f ≡ f' ∘ a) → (c ∘ g ≡ g' ∘ b) →
+                                             (c ∘ g ∘ f ≡ g' ∘ f' ∘ a)
+  concatdiag f g a b c f' g' df dg = funext (λ x →
+    c ( g (f x)) ≡⟨ cong⟨ (λ y → y (f x)) ⟩ dg ⟩
+    g' (b (f x)) ≡⟨ cong⟨ (λ y → g' (y x)) ⟩ df ⟩
+    refl)
+
+  ----------
+
+  ∅-fun : ∀{l}{l'} → ∅ {l} → ∅ {l'}
+  ∅-fun = λ ()
+
+  ∅-fun-uniq : ∀{l}{l'}{A : Set l} → (f1 f2 : A → ∅ {l'}) → f1 ≡ f2
+  ∅-fun-uniq {_}{_}{A} f1 f2 = funext λ x → ∅-elim-prop (f1 x)
 
 
 \end{code}
